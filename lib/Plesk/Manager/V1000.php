@@ -199,7 +199,7 @@ class Plesk_Manager_V1000 extends Plesk_Manager_Base
         return (false === strpos($ip, '.'));
     }
 
-    protected function _getCustomerExternalId($id)
+    protected function _getCustomerExternalId($params)
     {
         return '';
     }
