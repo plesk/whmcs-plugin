@@ -27,4 +27,5 @@ $keys = [
     "ERROR_AUTHENTICATION_FAILED" => "Authentication failed. Please enter the correct credentials to Panel and try again.",
     "ERROR_AGENT_INITIALIZATION_FAILED" => "Panel agent initialization failed. Please check your panel settings and try again. If this problem remains unresolved, contact your service provider.",
     "ERROR_ACCOUNT_CREATE_COMMON_MESSAGE" => "Unable to create account on Panel side. Please check your account settings and try again. If this problem remains unresolved, contact your Panel administrator.",
+    "ERROR_RESTRICTIONS_ACCOUNT_COUNT" => "You have reached the limit of allowed subscriptions per one account (@ACCOUNT_LIMIT@ subscription(s) allowed). To order a new subscription you should use another account.",
 ];

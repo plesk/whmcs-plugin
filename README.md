@@ -16,3 +16,8 @@ The list of the supported functions:
  * AdminServicesTabFields
  * ChangePackage
  * UsageUpdate
+
+## Customization ##
+
+You can specify account's count per client by using a config.ini file.
+All you need to do is rename config.ini.sample to config.ini and uncomment appropriate setting.

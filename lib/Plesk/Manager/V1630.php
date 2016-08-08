@@ -188,7 +188,9 @@ class Plesk_Manager_V1630 extends Plesk_Manager_V1000
 
     protected function _addWebspace($params)
     {
-        $requestParams = array(
+        $this->_checkRestrictions($params);
+
+        $requestParams = [
             'domain' => $params['domain'],
             'ownerId' => $params['ownerId'],
             'username' => $params['username'],
@@ -198,7 +200,7 @@ class Plesk_Manager_V1630 extends Plesk_Manager_V1000
             'planName' => $params['configoption1'],
             'ipv4Address' => $params['ipv4Address'],
             'ipv6Address' => $params['ipv6Address'],
-        );
+        ];
         Plesk_Registry::getInstance()->api->webspace_add($requestParams);
     }
 

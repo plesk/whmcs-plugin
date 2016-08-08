@@ -1,6 +1,8 @@
 <?php
 // Copyright 1999-2016. Parallels IP Holdings GmbH.
 
+use Illuminate\Database\Capsule\Manager as Capsule;
+
 class Plesk_Manager_V1000 extends Plesk_Manager_Base
 {
     protected function _getSupportedApiVersions()
@@ -288,7 +290,9 @@ class Plesk_Manager_V1000 extends Plesk_Manager_Base
 
     protected function _addWebspace($params)
     {
-        $requestParams = array(
+        $this->_checkRestrictions($params);
+
+        $requestParams = [
             'domain' => $params['domain'],
             'ownerId' => $params['ownerId'],
             'username' => $params['username'],
@@ -298,7 +302,7 @@ class Plesk_Manager_V1000 extends Plesk_Manager_Base
             'planName' => $params['configoption1'],
             'ipv4Address' => $params['ipv4Address'],
             'ipv6Address' => $params['ipv6Address'],
-        );
+        ];
         Plesk_Registry::getInstance()->api->webspace_add($requestParams);
     }
 
@@ -454,6 +458,30 @@ class Plesk_Manager_V1000 extends Plesk_Manager_Base
                 array(
                     'domain' => $params['domain'],
                     'ipv4Address' => $ipv4Address,
+                )
+            );
+        }
+    }
+
+    /**
+     * @param array $params
+     * @throws Exception
+     */
+    protected function _checkRestrictions($params)
+    {
+        $accountLimit = (int)Plesk_Config::get()->account_limit;
+        if (0 >= $accountLimit) {
+            return;
+        }
+
+        $accountCount = Plesk_Utils::getAccountsCount($params['userid']);
+        if ($accountLimit <= $accountCount) {
+            throw new Exception(
+                Plesk_Registry::getInstance()->translator->translate(
+                    'ERROR_RESTRICTIONS_ACCOUNT_COUNT',
+                    [
+                        'ACCOUNT_LIMIT' => $accountLimit,
+                    ]
                 )
             );
         }
