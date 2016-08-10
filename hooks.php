@@ -25,6 +25,9 @@ add_hook('ShoppingCartValidateCheckout', 1, function ($vars)
             $pleskAccountsInCart++;
         }
     }
+    if (!$pleskAccountsInCart) {
+        return [];
+    }
     $summaryAccounts = $accountCount + $pleskAccountsInCart;
 
     $errors = [];
