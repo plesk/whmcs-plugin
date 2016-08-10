@@ -475,7 +475,7 @@ class Plesk_Manager_V1000 extends Plesk_Manager_Base
         }
 
         $accountCount = Plesk_Utils::getAccountsCount($params['userid']);
-        if ($accountLimit <= $accountCount) {
+        if ($accountLimit < $accountCount) {
             throw new Exception(
                 Plesk_Registry::getInstance()->translator->translate(
                     'ERROR_RESTRICTIONS_ACCOUNT_COUNT',
