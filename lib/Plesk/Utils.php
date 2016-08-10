@@ -14,7 +14,7 @@ class Plesk_Utils
             ->join('tblservers', 'tblservers.id', '=', 'tblhosting.server')
             ->where('tblhosting.userid', $userId)
             ->where('tblservers.type', 'plesk')
-            ->whereIn('tblhosting.domainstatus', ['Active', 'Suspended'])
+            ->whereIn('tblhosting.domainstatus', ['Active', 'Suspended', 'Pending'])
             ->count();
     }
 
