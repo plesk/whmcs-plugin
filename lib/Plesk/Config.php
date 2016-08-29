@@ -31,9 +31,9 @@ class Plesk_Config
      */
     public static function getDefaults()
     {
-        return [
+        return array(
             'account_limit' => 0
-        ];
+        );
     }
 
     /**
@@ -45,10 +45,10 @@ class Plesk_Config
     {
         $filename = dirname(dirname(dirname(__FILE__))) . "/config.ini";
         if (!file_exists($filename)) {
-            return [];
+            return array();
         }
 
         $result = parse_ini_file($filename, true);
-        return !$result ? [] : $result;
+        return !$result ? array() : $result;
     }
 }

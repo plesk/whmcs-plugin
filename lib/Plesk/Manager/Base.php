@@ -1,5 +1,6 @@
 <?php
 // Copyright 1999-2016. Parallels IP Holdings GmbH.
+use Illuminate\Database\Capsule\Manager as Capsule;
 
 abstract class Plesk_Manager_Base
 {
@@ -36,19 +37,25 @@ abstract class Plesk_Manager_Base
 
     public function createTableForAccountStorage()
     {
-        if (!mysql_num_rows(full_query("SHOW TABLES LIKE 'mod_pleskaccounts'"))) {
-            $query = "
-              CREATE TABLE IF NOT EXISTS `mod_pleskaccounts` (
-                `userid` int(10) unsigned NOT NULL auto_increment,
-                `usertype` varchar(30) NOT NULL,
-                `panelexternalid` varchar(255) NOT NULL,
-                PRIMARY KEY  (`userid`),
-                KEY `usertype` (`usertype`),
-                UNIQUE KEY `panelexternalid` (`panelexternalid`)
-              ) ENGINE=MyISAM
-            ";
-            full_query($query);
+        if (Capsule::schema()->hasTable('mod_pleskaccounts')) {
+            return;
         }
+
+        Capsule::schema()->create(
+            'mod_pleskaccounts',
+            function ($table) {
+                $table->engine = 'MyISAM';
+
+                /** @var \Illuminate\Database\Schema\Blueprint $table */
+                $table->integer('userid');
+                $table->string('usertype');
+                $table->string('panelexternalid');
+
+                $table->primary('userid');
+                $table->index('usertype');
+                $table->unique('panelexternalid');
+            }
+        );
     }
 
     protected function _checkErrors($result)
