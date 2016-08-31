@@ -14,7 +14,7 @@ add_hook('ShoppingCartValidateCheckout', 1, function ($vars)
     $translator = new Plesk_Translate();
     $accountLimit = (int)Plesk_Config::get()->account_limit;
     if (0 >= $accountLimit) {
-        return [];
+        return array();
     }
 
     $accountCount = ('new' == $vars['custtype']) ? 0 : Plesk_Utils::getAccountsCount($vars['userid']);
@@ -26,17 +26,17 @@ add_hook('ShoppingCartValidateCheckout', 1, function ($vars)
         }
     }
     if (!$pleskAccountsInCart) {
-        return [];
+        return array();
     }
     $summaryAccounts = $accountCount + $pleskAccountsInCart;
 
-    $errors = [];
+    $errors = array();
     if (0 < $accountLimit && $summaryAccounts > $accountLimit) {
         $errors[] = $translator->translate(
             'ERROR_RESTRICTIONS_ACCOUNT_COUNT',
-            [
+            array(
                 'ACCOUNT_LIMIT' => $accountLimit
-            ]
+            )
         );
     }
 

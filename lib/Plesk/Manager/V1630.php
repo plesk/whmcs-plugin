@@ -1,5 +1,6 @@
 <?php
 // Copyright 1999-2016. Parallels IP Holdings GmbH.
+use Illuminate\Database\Capsule\Manager as Capsule;
 
 class Plesk_Manager_V1630 extends Plesk_Manager_V1000
 {
@@ -19,18 +20,14 @@ class Plesk_Manager_V1630 extends Plesk_Manager_V1000
         if (is_null($panelExternalId)) {
 
             $this->createTableForAccountStorage();
-            $sqlresult = select_query(
-                'mod_pleskaccounts',
-                'panelexternalid',
-                array(
-                    "userid" => $params['clientsdetails']['userid'],
-                    "usertype" => $params['type'],
-                )
-            );
-            $panelExternalId = '';
-            while ($data = mysql_fetch_row($sqlresult)) {
-                $panelExternalId = reset($data);
-            }
+
+            /** @var stdClass $account */
+            $account = Capsule::table('mod_pleskaccounts')
+                ->where('userid', $params['clientsdetails']['userid'])
+                ->where('usertype', $params['type'])
+                ->first();
+
+            $panelExternalId = is_null($account) ? '' : $account->panelexternalid;
         }
 
         if ('' != $panelExternalId) {
@@ -92,55 +89,47 @@ class Plesk_Manager_V1630 extends Plesk_Manager_V1000
             return $accountInfo;
         }
 
-        $sqlresult = select_query(
-            "tblhosting",
-            "username",
-            array(
-                "server" => $params['serverid'],
-                "userid" => $params["clientsdetails"]["userid"]
-            )
-        );
-        while ($data = mysql_fetch_row($sqlresult)) {
-            $login = reset($data);
-            $requestParams = array( 'login' => $login );
-            switch ($params['type']) {
-                case Plesk_Object_Customer::TYPE_CLIENT:
+        /** @var stdClass $hosting */
+        $hosting = Capsule::table('tblhosting')
+            ->where('server', $params['serverid'])
+            ->where('userid', $params['clientsdetails']['userid'])
+            ->first();
 
-                    try {
-                        $result = Plesk_Registry::getInstance()->api->customer_get_by_login($requestParams);
-                        if (isset($result->customer->get->result->id)) {
-                            $accountInfo['id'] = (int)$result->customer->get->result->id;
-                        }
-                        if (isset($result->customer->get->result->data->gen_info->login)) {
-                            $accountInfo['login'] = (string)$result->customer->get->result->data->gen_info->login;
-                        }
-                    } catch (Exception $e) {
-                        if (Plesk_Api::ERROR_OBJECT_NOT_FOUND != $e->getCode()) {
-                            throw $e;
-                        }
+        $login = is_null($hosting) ? '' : $hosting->username;
+        $requestParams = array('login' => $login);
+        switch ($params['type']) {
+            case Plesk_Object_Customer::TYPE_CLIENT:
+
+                try {
+                    $result = Plesk_Registry::getInstance()->api->customer_get_by_login($requestParams);
+                    if (isset($result->customer->get->result->id)) {
+                        $accountInfo['id'] = (int)$result->customer->get->result->id;
                     }
-                    break;
-
-                case Plesk_Object_Customer::TYPE_RESELLER:
-                    try {
-                        $result = Plesk_Registry::getInstance()->api->reseller_get_by_login($requestParams);
-                        if (isset($result->reseller->get->result->id)) {
-                            $accountInfo['id'] = (int)$result->reseller->get->result->id;
-                        }
-                        if (isset($result->reseller->get->result->data->{'gen-info'}->login)) {
-                            $accountInfo['login'] = (string)$result->reseller->get->result->data->{'gen-info'}->login;
-                        }
-                    } catch (Exception $e) {
-                        if (Plesk_Api::ERROR_OBJECT_NOT_FOUND != $e->getCode()) {
-                            throw $e;
-                        }
+                    if (isset($result->customer->get->result->data->gen_info->login)) {
+                        $accountInfo['login'] = (string)$result->customer->get->result->data->gen_info->login;
                     }
-                    break;
-            }
-
-            if (!empty($accountInfo)) {
+                } catch (Exception $e) {
+                    if (Plesk_Api::ERROR_OBJECT_NOT_FOUND != $e->getCode()) {
+                        throw $e;
+                    }
+                }
                 break;
-            }
+
+            case Plesk_Object_Customer::TYPE_RESELLER:
+                try {
+                    $result = Plesk_Registry::getInstance()->api->reseller_get_by_login($requestParams);
+                    if (isset($result->reseller->get->result->id)) {
+                        $accountInfo['id'] = (int)$result->reseller->get->result->id;
+                    }
+                    if (isset($result->reseller->get->result->data->{'gen-info'}->login)) {
+                        $accountInfo['login'] = (string)$result->reseller->get->result->data->{'gen-info'}->login;
+                    }
+                } catch (Exception $e) {
+                    if (Plesk_Api::ERROR_OBJECT_NOT_FOUND != $e->getCode()) {
+                        throw $e;
+                    }
+                }
+                break;
         }
 
         if (empty($accountInfo)) {
