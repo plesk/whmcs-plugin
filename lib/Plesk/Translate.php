@@ -14,12 +14,12 @@ class Plesk_Translate
         $currentFile = $dir . "/" . $this->_getLanguage() . ".php";
 
         if (file_exists($englishFile)) {
-            require_once $englishFile;
+            require $englishFile;
             $this->_keys = $keys;
         }
 
         if (file_exists($currentFile)) {
-            require_once $currentFile;
+            require $currentFile;
             $this->_keys = array_merge($this->_keys, $keys);
         }
     }
