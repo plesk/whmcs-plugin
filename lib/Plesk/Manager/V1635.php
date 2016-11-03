@@ -1,6 +1,8 @@
 <?php
 // Copyright 1999-2016. Parallels IP Holdings GmbH.
 
+use WHMCS\Input\Sanitize;
+
 class Plesk_Manager_V1635 extends Plesk_Manager_V1632
 {
     protected function _createSession($params)
@@ -40,10 +42,10 @@ class Plesk_Manager_V1635 extends Plesk_Manager_V1632
             '<input type="submit" value="%s" />' .
             '</form>',
             $secure,
-            WHMCS\Input\Sanitize::encode($address),
-            WHMCS\Input\Sanitize::encode($port),
-            WHMCS\Input\Sanitize::encode($sessionId),
-            WHMCS\Input\Sanitize::encode($sessionId),
+            Sanitize::encode($address),
+            Sanitize::encode($port),
+            Sanitize::encode($sessionId),
+            Sanitize::encode($sessionId),
             Plesk_Registry::getInstance()->translator->translate('BUTTON_CONTROL_PANEL')
         );
 
