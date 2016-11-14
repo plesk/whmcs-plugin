@@ -471,4 +471,14 @@ class Plesk_Manager_V1630 extends Plesk_Manager_V1000
         }
         return $result;
     }
+
+    protected function _getServicePlans()
+    {
+        $result = Plesk_Registry::getInstance()->api->service_plan_get();
+        $plans = array();
+        foreach ($result->xpath('//service-plan/get/result') as $plan) {
+            $plans[] = (string) $plan->name;
+        }
+        return $plans;
+    }
 }
