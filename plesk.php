@@ -367,22 +367,40 @@ function plesk_ChangePackage($params) {
 function plesk_UsageUpdate($params) {
 
     $query = Capsule::table('tblhosting')
+        ->leftjoin('tblproducts', 'tblhosting.packageid', '=', 'tblproducts.id')
         ->where('server', $params["serverid"])
         ->where('domainstatus', 'Active');
 
     $domains = array();
+    $reseller_domains = array();
     /** @var stdClass $hosting */
     foreach ($query->get() as $hosting) {
-        $domains[] = $hosting->domain;
+        if ($hosting->type === 'reselleraccount'){
+            $reseller_domains[] = $hosting->domain;
+        }
+        else{
+            $domains[] = $hosting->domain;
+        }
+    }
+    
+    /** Reseller Plan Updates **/
+    $params["domains"] = $reseller_domains;
+    try {
+        Plesk_Loader::init($params);
+        $resellerDomainsUsage = Plesk_Registry::getInstance()->manager->getResellerUsage($params);
+    } catch (Exception $e) {
+        return Plesk_Registry::getInstance()->translator->translate('ERROR_COMMON_MESSAGE', array('CODE' => $e->getCode(), 'MESSAGE' => $e->getMessage()));
     }
 
     $params["domains"] = $domains;
     try {
         Plesk_Loader::init($params);
-        $domainsUsage = Plesk_Registry::getInstance()->manager->getWebspacesUsage($params);
+        $regularDomainsUsage = Plesk_Registry::getInstance()->manager->getWebspacesUsage($params);
     } catch (Exception $e) {
         return Plesk_Registry::getInstance()->translator->translate('ERROR_COMMON_MESSAGE', array('CODE' => $e->getCode(), 'MESSAGE' => $e->getMessage()));
     }
+    
+    $domainsUsage = array_merge($resellerDomainsUsage, $regularDomainsUsage);
 
     foreach ( $domainsUsage as $domainName => $usage ) {
 
