@@ -367,7 +367,8 @@ function plesk_ChangePackage($params) {
 function plesk_UsageUpdate($params) {
 
     $query = Capsule::table('tblhosting')
-        ->where('server', $params["serverid"]);
+        ->where('server', $params["serverid"])
+        ->where('domainstatus', 'Active');
 
     $domains = array();
     /** @var stdClass $hosting */
