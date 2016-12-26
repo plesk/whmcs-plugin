@@ -9,7 +9,7 @@ class Plesk_Manager_V1630 extends Plesk_Manager_V1000
         $result = Plesk_Registry::getInstance()->api->resellerPlan_get();
         $resellerPlans = array();
         foreach ($result->xpath('//reseller-plan/get/result') as $result) {
-            $resellerPlans[] = new ResellerPlan((integer)$result->id, (string)$result->name);
+            $resellerPlans[] = new Plesk_Object_ResellerPlan((integer)$result->id, (string)$result->name);
         }
         return $resellerPlans;
     }
