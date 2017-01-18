@@ -415,7 +415,7 @@ class Plesk_Manager_V1630 extends Plesk_Manager_V1000
      * @return array (<domainName> => array ('diskusage' => value, 'disklimit' => value, 'bwusage' => value, 'bwlimit' => value))
      * @throws Exception
      */
-    protected function _getResellerUsage($params)
+    protected function _getResellersUsage($params)
     {  
         $usage = array();
         $data = Plesk_Registry::getInstance()->api->reseller_usage_get_by_login(array('logins' => $params['usernames']));
