@@ -409,6 +409,38 @@ class Plesk_Manager_V1630 extends Plesk_Manager_V1000
         }
         return $usage;
     }
+    
+    /**
+     * @param $params
+     * @return array (<domainName> => array ('diskusage' => value, 'disklimit' => value, 'bwusage' => value, 'bwlimit' => value))
+     * @throws Exception
+     */
+    protected function _getResellerUsage($params)
+    {  
+        $usage = array();
+        $data = Plesk_Registry::getInstance()->api->reseller_usage_get_by_login(array('logins' => $params['usernames']));
+        foreach($data->xpath('//reseller/get/result') as $result) {
+            try {
+                $this->_checkErrors($result);
+                $login = (string)$result->data->gen_info->login;
+                $usage[$login]['diskusage'] = (float)$result->data->gen_info->real_size;
+                $usage[$login]['bwusage'] = (float)$result->data->stat->traffic;
+                $usage[$login] = array_merge($usage[$login], $this->_getLimits($result->data->limits));
+            } catch (Exception $e) {
+                if (Plesk_Api::ERROR_OBJECT_NOT_FOUND != $e->getCode()) {
+                    throw $e;
+                }
+            }
+        }
+
+        //Data saved in megabytes, not in a bytes
+        foreach($usage as $login => $loginUsage) {
+            foreach($loginUsage as $param => $value) {
+                $usage[$login][$param] = $usage[$login][$param] / (1024 * 1024);
+            }
+        }
+        return $usage;
+    }
 
     protected function _addIpToIpPool($accountId, $params) {}
 
