@@ -7,9 +7,9 @@
             <?php endforeach; ?>
         </filter>
         <dataset>
-            <limits/>
+            <gen-info/>
             <stat/>
-            <gen_info/>
+            <limits/>
         </dataset>
     </get>
 </reseller>

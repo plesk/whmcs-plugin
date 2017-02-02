@@ -378,59 +378,63 @@ function plesk_UsageUpdate($params) {
         if ($hosting->type === 'reselleraccount'){
             $reseller_usernames[] = $hosting->username;
         }
-        else{
+        else if (!empty($hosting->domain)){
             $domains[] = $hosting->domain;
         }
     }
     
     /** Reseller Plan Updates **/
-    $params["usernames"] = $reseller_usernames;
-    try {
-        Plesk_Loader::init($params);
-        $resellerAccountsUsage = Plesk_Registry::getInstance()->manager->getResellersUsage($params);
-    } catch (Exception $e) {
-        return Plesk_Registry::getInstance()->translator->translate('ERROR_COMMON_MESSAGE', array('CODE' => $e->getCode(), 'MESSAGE' => $e->getMessage()));
-    }
-    
-    foreach ( $resellerAccountsUsage as $username => $usage ) {
+    if (!empty($reseller_usernames)){
+      $params["usernames"] = $reseller_usernames;
+      try {
+          Plesk_Loader::init($params);
+          $resellerAccountsUsage = Plesk_Registry::getInstance()->manager->getResellersUsage($params);
+      } catch (Exception $e) {
+          return Plesk_Registry::getInstance()->translator->translate('ERROR_COMMON_MESSAGE', array('CODE' => $e->getCode(), 'MESSAGE' => $e->getMessage()));
+      }
 
-        Capsule::table('tblhosting')
-            ->where('server', $params["serverid"])
-            ->where('username', $username)
-            ->update(
-                array(
-                    "diskusage" => $usage['diskusage'],
-                    "disklimit" => $usage['disklimit'],
-                    "bwusage" => $usage['bwusage'],
-                    "bwlimit" => $usage['bwlimit'],
-                    "lastupdate" => Capsule::table('tblhosting')->raw('now()'),
-                )
-            );
-    }
-    
-    /** Standard hosting plan updates **/
-    $params["domains"] = $domains;
-    try {
-        Plesk_Loader::init($params);
-        $domainsUsage = Plesk_Registry::getInstance()->manager->getWebspacesUsage($params);
-    } catch (Exception $e) {
-        return Plesk_Registry::getInstance()->translator->translate('ERROR_COMMON_MESSAGE', array('CODE' => $e->getCode(), 'MESSAGE' => $e->getMessage()));
-    }
-    
-    foreach ( $domainsUsage as $domainName => $usage ) {
+      foreach ( $resellerAccountsUsage as $username => $usage ) {
 
-        Capsule::table('tblhosting')
-            ->where('server', $params["serverid"])
-            ->where('domain', $domainName)
-            ->update(
-                array(
-                    "diskusage" => $usage['diskusage'],
-                    "disklimit" => $usage['disklimit'],
-                    "bwusage" => $usage['bwusage'],
-                    "bwlimit" => $usage['bwlimit'],
-                    "lastupdate" => Capsule::table('tblhosting')->raw('now()'),
-                )
-            );
+          Capsule::table('tblhosting')
+              ->where('server', $params["serverid"])
+              ->where('username', $username)
+              ->update(
+                  array(
+                      "diskusage" => $usage['diskusage'],
+                      "disklimit" => $usage['disklimit'],
+                      "bwusage" => $usage['bwusage'],
+                      "bwlimit" => $usage['bwlimit'],
+                      "lastupdate" => Capsule::table('tblhosting')->raw('now()'),
+                  )
+              );
+      }
+    }
+    
+    if (!empty($domains)){
+      /** Standard hosting plan updates **/
+      $params["domains"] = $domains;
+      try {
+          Plesk_Loader::init($params);
+          $domainsUsage = Plesk_Registry::getInstance()->manager->getWebspacesUsage($params);
+      } catch (Exception $e) {
+          return Plesk_Registry::getInstance()->translator->translate('ERROR_COMMON_MESSAGE', array('CODE' => $e->getCode(), 'MESSAGE' => $e->getMessage()));
+      }
+      
+      foreach ( $domainsUsage as $domainName => $usage ) {
+
+          Capsule::table('tblhosting')
+              ->where('server', $params["serverid"])
+              ->where('domain', $domainName)
+              ->update(
+                  array(
+                      "diskusage" => $usage['diskusage'],
+                      "disklimit" => $usage['disklimit'],
+                      "bwusage" => $usage['bwusage'],
+                      "bwlimit" => $usage['bwlimit'],
+                      "lastupdate" => Capsule::table('tblhosting')->raw('now()'),
+                  )
+              );
+      }
     }
 
     return 'success';
