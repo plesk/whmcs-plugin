@@ -2,8 +2,8 @@
 <customer>
     <add>
         <gen_info>
-            <cname><?php echo $params['companyname']; ?></cname>
-            <pname><?php echo $params['firstname']; ?> <?php echo $params['lastname']; ?></pname>
+            <cname><?php echo htmlspecialchars($params['companyname'], ENT_XML1); ?></cname>
+            <pname><?php echo htmlspecialchars($params['firstname'] . ' ' . $params['lastname'], ENT_XML1); ?></pname>
             <login><?php echo $username; ?></login>
             <passwd><?php echo $accountPassword; ?></passwd>
             <status><?php echo $status; ?></status>
