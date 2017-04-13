@@ -3,7 +3,7 @@
     <add>
         <gen_info>
             <cname><?php echo htmlspecialchars($params['companyname'], ENT_XML1); ?></cname>
-            <pname><?php echo $params['firstname']; ?> <?php echo $params['lastname']; ?></pname>
+            <pname><?php echo htmlspecialchars($params['firstname'] . ' ' . $params['lastname'], ENT_XML1); ?></pname>
             <login><?php echo $username; ?></login>
             <passwd><?php echo $accountPassword; ?></passwd>
             <status><?php echo $status; ?></status>
