@@ -89,47 +89,52 @@ class Plesk_Manager_V1630 extends Plesk_Manager_V1000
             return $accountInfo;
         }
 
-        /** @var stdClass $hosting */
-        $hosting = Capsule::table('tblhosting')
+        $query = Capsule::table('tblhosting')
             ->where('server', $params['serverid'])
-            ->where('userid', $params['clientsdetails']['userid'])
-            ->first();
+            ->where('userid', $params['clientsdetails']['userid']);
 
-        $login = is_null($hosting) ? '' : $hosting->username;
-        $requestParams = array('login' => $login);
-        switch ($params['type']) {
-            case Plesk_Object_Customer::TYPE_CLIENT:
+        /** @var stdClass $hosting */
+        foreach ($query->get() as $hosting) {
+            $login = is_null($hosting) ? '' : $hosting->username;
+            $requestParams = array('login' => $login);
+            switch ($params['type']) {
+                case Plesk_Object_Customer::TYPE_CLIENT:
 
-                try {
-                    $result = Plesk_Registry::getInstance()->api->customer_get_by_login($requestParams);
-                    if (isset($result->customer->get->result->id)) {
-                        $accountInfo['id'] = (int)$result->customer->get->result->id;
+                    try {
+                        $result = Plesk_Registry::getInstance()->api->customer_get_by_login($requestParams);
+                        if (isset($result->customer->get->result->id)) {
+                            $accountInfo['id'] = (int)$result->customer->get->result->id;
+                        }
+                        if (isset($result->customer->get->result->data->gen_info->login)) {
+                            $accountInfo['login'] = (string)$result->customer->get->result->data->gen_info->login;
+                        }
+                    } catch (Exception $e) {
+                        if (Plesk_Api::ERROR_OBJECT_NOT_FOUND != $e->getCode()) {
+                            throw $e;
+                        }
                     }
-                    if (isset($result->customer->get->result->data->gen_info->login)) {
-                        $accountInfo['login'] = (string)$result->customer->get->result->data->gen_info->login;
+                    break;
+
+                case Plesk_Object_Customer::TYPE_RESELLER:
+                    try {
+                        $result = Plesk_Registry::getInstance()->api->reseller_get_by_login($requestParams);
+                        if (isset($result->reseller->get->result->id)) {
+                            $accountInfo['id'] = (int)$result->reseller->get->result->id;
+                        }
+                        if (isset($result->reseller->get->result->data->{'gen-info'}->login)) {
+                            $accountInfo['login'] = (string)$result->reseller->get->result->data->{'gen-info'}->login;
+                        }
+                    } catch (Exception $e) {
+                        if (Plesk_Api::ERROR_OBJECT_NOT_FOUND != $e->getCode()) {
+                            throw $e;
+                        }
                     }
-                } catch (Exception $e) {
-                    if (Plesk_Api::ERROR_OBJECT_NOT_FOUND != $e->getCode()) {
-                        throw $e;
-                    }
-                }
+                    break;
+            }
+
+            if (!empty($accountInfo)) {
                 break;
-
-            case Plesk_Object_Customer::TYPE_RESELLER:
-                try {
-                    $result = Plesk_Registry::getInstance()->api->reseller_get_by_login($requestParams);
-                    if (isset($result->reseller->get->result->id)) {
-                        $accountInfo['id'] = (int)$result->reseller->get->result->id;
-                    }
-                    if (isset($result->reseller->get->result->data->{'gen-info'}->login)) {
-                        $accountInfo['login'] = (string)$result->reseller->get->result->data->{'gen-info'}->login;
-                    }
-                } catch (Exception $e) {
-                    if (Plesk_Api::ERROR_OBJECT_NOT_FOUND != $e->getCode()) {
-                        throw $e;
-                    }
-                }
-                break;
+            }
         }
 
         if (empty($accountInfo)) {
