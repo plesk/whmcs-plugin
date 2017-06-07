@@ -135,10 +135,10 @@ function plesk_CreateAccount($params) {
   
     if ( strlen($params['password']) <= NEW_PASSWORD_LENGTH ){
       
-      $newPassword = randomPassword(NEW_PASSWORD_LENGTH);
+      $newPassword = pleskRandomPassword(NEW_PASSWORD_LENGTH);
       
       //Change password saved in WHMCS for product
-      $values["serviceid"] = $vars['params']['serviceid'];
+      $values["serviceid"] = $params['serviceid'];
       $values["servicepassword"] = $newPassword;
       $results = localAPI("updateclientproduct",$values);
       
@@ -475,7 +475,7 @@ function plesk_TestConnection($params) {
  * Limitations: only works with PHP7+ due to random_int() being used.
  */
 
-function randomPassword($size = 8) {
+function pleskRandomPassword($size = 8) {
 
     $alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^*?_~';
 		$symbols = '!@#$%^*?_~';
