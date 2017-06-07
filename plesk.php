@@ -6,6 +6,8 @@ require_once 'lib/Plesk/Loader.php';
 use Illuminate\Database\Capsule\Manager as Capsule;
 use WHMCS\Input\Sanitize;
 
+define("NEW_PASSWORD_LENGTH", 20);
+
 function plesk_MetaData() {
     return array(
         'DisplayName' => 'Plesk',
@@ -130,6 +132,19 @@ function plesk_ClientArea($params) {
  * @return string
  */
 function plesk_CreateAccount($params) {
+  
+    if ( strlen($params['password']) <= NEW_PASSWORD_LENGTH ){
+      
+      $newPassword = randomPassword(NEW_PASSWORD_LENGTH);
+      
+      //Change password saved in WHMCS for product
+      $values["serviceid"] = $vars['params']['serviceid'];
+      $values["servicepassword"] = $newPassword;
+      $results = localAPI("updateclientproduct",$values);
+      
+      $params['password'] = $newPassword;
+      
+    }
 
     try {
 
@@ -452,4 +467,29 @@ function plesk_TestConnection($params) {
             'error' => Plesk_Registry::getInstance()->translator->translate('ERROR_COMMON_MESSAGE', array('CODE' => $e->getCode(), 'MESSAGE' => $e->getMessage())),
         );
     }
+}
+
+
+/**
+ * Pseudorandom password generator
+ * Limitations: only works with PHP7+ due to random_int() being used.
+ */
+
+function randomPassword($size = 8) {
+
+    $alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^*?_~';
+		$symbols = '!@#$%^*?_~';
+
+    $pass = array(); //remember to declare $pass as an array
+    $alphaLength = strlen($alphabet) - 1; //put the length -1 in cache
+    for ($i = 0; $i < $size; $i++) {
+        $n = random_int(0, $alphaLength);
+        $pass[] = $alphabet[$n];
+    }
+		if ( empty( preg_grep('/[!@#\$%\^&\*\?_~]/', $pass) ) ){ // If no symbols. Add 2
+				$pass[random_int(0, $alphaLength)] = $symbols[random_int(0, strlen($symbols) - 1)];
+				$pass[random_int(0, $alphaLength)] = $symbols[random_int(0, strlen($symbols) - 1)];
+		}
+    return implode($pass); //turn the array into a string
+
 }
