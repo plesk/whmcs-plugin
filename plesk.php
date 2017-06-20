@@ -4,32 +4,62 @@
 require_once 'lib/Plesk/Loader.php';
 
 use Illuminate\Database\Capsule\Manager as Capsule;
+use WHMCS\Input\Sanitize;
 
 function plesk_MetaData() {
     return array(
-        'DisplayName' => 'Plesk V8+',
+        'DisplayName' => 'Plesk',
         'APIVersion' => '1.1',
     );
 }
 
 /**
+ * @param array $params
  * @return array
  */
-function plesk_ConfigOptions($params)
+function plesk_ConfigOptions(array $params)
 {
     require_once 'lib/Plesk/Translate.php';
     $translator = new Plesk_Translate();
+
+    $resellerSimpleMode = ($params['producttype'] == 'reselleraccount');
 
     $configarray = array(
         "servicePlanName" => array(
             "FriendlyName" => $translator->translate("CONFIG_SERVICE_PLAN_NAME"),
             "Type" => "text",
-            "Size" => "25"
+            "Size" => "25",
+            'Loader' => function(array $params) {
+                $return = array();
+
+                Plesk_Loader::init($params);
+                $packages = Plesk_Registry::getInstance()->manager->getServicePlans();
+                $return[''] = 'None';
+                foreach ($packages as $package) {
+                    $return[$package] = $package;
+                }
+
+                return $return;
+            },
+            'SimpleMode' => true,
         ),
         "resellerPlanName" => array(
             "FriendlyName" => $translator->translate("CONFIG_RESELLER_PLAN_NAME"),
             "Type" => "text",
-            "Size" => "25"
+            "Size" => "25",
+            'Loader' => function(array $params) {
+                $return = array();
+
+                Plesk_Loader::init($params);
+                $packages = Plesk_Registry::getInstance()->manager->getResellerPlans();
+                $return[''] = 'None';
+                foreach ($packages as $package) {
+                    $return[$package] = $package;
+                }
+
+                return $return;
+            },
+            'SimpleMode' => $resellerSimpleMode,
         ),
         "ipAdresses" => array (
             "FriendlyName" => $translator->translate("CONFIG_WHICH_IP_ADDRESSES"),
@@ -37,6 +67,7 @@ function plesk_ConfigOptions($params)
             "Options" => "IPv4 shared; IPv6 none,IPv4 dedicated; IPv6 none,IPv4 none; IPv6 shared,IPv4 none; IPv6 dedicated,IPv4 shared; IPv6 shared,IPv4 shared; IPv6 dedicated,IPv4 dedicated; IPv6 shared,IPv4 dedicated; IPv6 dedicated",
             "Default" => "IPv4 shared; IPv6 none",
             "Description" => "",
+            'SimpleMode' => true,
         ),
         "powerUser" => array(
             "FriendlyName" => $translator->translate("CONFIG_POWER_USER_MODE"),
@@ -69,10 +100,10 @@ function plesk_AdminLink($params)
         '<input type="submit" value="%s">' .
         '</form>',
         $secure,
-        WHMCS\Input\Sanitize::encode($address),
-        WHMCS\Input\Sanitize::encode($port),
-        WHMCS\Input\Sanitize::encode($params["serverusername"]),
-        WHMCS\Input\Sanitize::encode($params["serverpassword"]),
+        Sanitize::encode($address),
+        Sanitize::encode($port),
+        Sanitize::encode($params["serverusername"]),
+        Sanitize::encode($params["serverpassword"]),
         'Login to panel'
     );
 
@@ -336,36 +367,74 @@ function plesk_ChangePackage($params) {
 function plesk_UsageUpdate($params) {
 
     $query = Capsule::table('tblhosting')
-        ->where('server', $params["serverid"]);
+        ->leftjoin('tblproducts', 'tblhosting.packageid', '=', 'tblproducts.id')
+        ->where('server', $params["serverid"])
+        ->where('domainstatus', 'Active');
 
     $domains = array();
+    $reseller_usernames = array();
     /** @var stdClass $hosting */
     foreach ($query->get() as $hosting) {
-        $domains[] = $hosting->domain;
+        if ($hosting->type === 'reselleraccount'){
+            $reseller_usernames[] = $hosting->username;
+        }
+        else if (!empty($hosting->domain)){
+            $domains[] = $hosting->domain;
+        }
     }
+    
+    /** Reseller Plan Updates **/
+    if (!empty($reseller_usernames)){
+      $params["usernames"] = $reseller_usernames;
+      try {
+          Plesk_Loader::init($params);
+          $resellerAccountsUsage = Plesk_Registry::getInstance()->manager->getResellersUsage($params);
+      } catch (Exception $e) {
+          return Plesk_Registry::getInstance()->translator->translate('ERROR_COMMON_MESSAGE', array('CODE' => $e->getCode(), 'MESSAGE' => $e->getMessage()));
+      }
 
-    $params["domains"] = $domains;
-    try {
-        Plesk_Loader::init($params);
-        $domainsUsage = Plesk_Registry::getInstance()->manager->getWebspacesUsage($params);
-    } catch (Exception $e) {
-        return Plesk_Registry::getInstance()->translator->translate('ERROR_COMMON_MESSAGE', array('CODE' => $e->getCode(), 'MESSAGE' => $e->getMessage()));
+      foreach ( $resellerAccountsUsage as $username => $usage ) {
+
+          Capsule::table('tblhosting')
+              ->where('server', $params["serverid"])
+              ->where('username', $username)
+              ->update(
+                  array(
+                      "diskusage" => $usage['diskusage'],
+                      "disklimit" => $usage['disklimit'],
+                      "bwusage" => $usage['bwusage'],
+                      "bwlimit" => $usage['bwlimit'],
+                      "lastupdate" => Capsule::table('tblhosting')->raw('now()'),
+                  )
+              );
+      }
     }
+    
+    if (!empty($domains)){
+      /** Standard hosting plan updates **/
+      $params["domains"] = $domains;
+      try {
+          Plesk_Loader::init($params);
+          $domainsUsage = Plesk_Registry::getInstance()->manager->getWebspacesUsage($params);
+      } catch (Exception $e) {
+          return Plesk_Registry::getInstance()->translator->translate('ERROR_COMMON_MESSAGE', array('CODE' => $e->getCode(), 'MESSAGE' => $e->getMessage()));
+      }
+      
+      foreach ( $domainsUsage as $domainName => $usage ) {
 
-    foreach ( $domainsUsage as $domainName => $usage ) {
-
-        Capsule::table('tblhosting')
-            ->where('server', $params["serverid"])
-            ->where('domain', $domainName)
-            ->update(
-                array(
-                    "diskusage" => $usage['diskusage'],
-                    "disklimit" => $usage['disklimit'],
-                    "bwusage" => $usage['bwusage'],
-                    "bwlimit" => $usage['bwlimit'],
-                    "lastupdate" => Capsule::table('tblhosting')->raw('now()'),
-                )
-            );
+          Capsule::table('tblhosting')
+              ->where('server', $params["serverid"])
+              ->where('domain', $domainName)
+              ->update(
+                  array(
+                      "diskusage" => $usage['diskusage'],
+                      "disklimit" => $usage['disklimit'],
+                      "bwusage" => $usage['bwusage'],
+                      "bwlimit" => $usage['bwlimit'],
+                      "lastupdate" => Capsule::table('tblhosting')->raw('now()'),
+                  )
+              );
+      }
     }
 
     return 'success';

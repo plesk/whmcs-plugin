@@ -9,7 +9,7 @@ class Plesk_Manager_V1630 extends Plesk_Manager_V1000
         $result = Plesk_Registry::getInstance()->api->resellerPlan_get();
         $resellerPlans = array();
         foreach ($result->xpath('//reseller-plan/get/result') as $result) {
-            $resellerPlans[] = new ResellerPlan((integer)$result->id, (string)$result->name);
+            $resellerPlans[] = new Plesk_Object_ResellerPlan((integer)$result->id, (string)$result->name);
         }
         return $resellerPlans;
     }
@@ -89,47 +89,52 @@ class Plesk_Manager_V1630 extends Plesk_Manager_V1000
             return $accountInfo;
         }
 
-        /** @var stdClass $hosting */
-        $hosting = Capsule::table('tblhosting')
+        $query = Capsule::table('tblhosting')
             ->where('server', $params['serverid'])
-            ->where('userid', $params['clientsdetails']['userid'])
-            ->first();
+            ->where('userid', $params['clientsdetails']['userid']);
 
-        $login = is_null($hosting) ? '' : $hosting->username;
-        $requestParams = array('login' => $login);
-        switch ($params['type']) {
-            case Plesk_Object_Customer::TYPE_CLIENT:
+        /** @var stdClass $hosting */
+        foreach ($query->get() as $hosting) {
+            $login = is_null($hosting) ? '' : $hosting->username;
+            $requestParams = array('login' => $login);
+            switch ($params['type']) {
+                case Plesk_Object_Customer::TYPE_CLIENT:
 
-                try {
-                    $result = Plesk_Registry::getInstance()->api->customer_get_by_login($requestParams);
-                    if (isset($result->customer->get->result->id)) {
-                        $accountInfo['id'] = (int)$result->customer->get->result->id;
+                    try {
+                        $result = Plesk_Registry::getInstance()->api->customer_get_by_login($requestParams);
+                        if (isset($result->customer->get->result->id)) {
+                            $accountInfo['id'] = (int)$result->customer->get->result->id;
+                        }
+                        if (isset($result->customer->get->result->data->gen_info->login)) {
+                            $accountInfo['login'] = (string)$result->customer->get->result->data->gen_info->login;
+                        }
+                    } catch (Exception $e) {
+                        if (Plesk_Api::ERROR_OBJECT_NOT_FOUND != $e->getCode()) {
+                            throw $e;
+                        }
                     }
-                    if (isset($result->customer->get->result->data->gen_info->login)) {
-                        $accountInfo['login'] = (string)$result->customer->get->result->data->gen_info->login;
+                    break;
+
+                case Plesk_Object_Customer::TYPE_RESELLER:
+                    try {
+                        $result = Plesk_Registry::getInstance()->api->reseller_get_by_login($requestParams);
+                        if (isset($result->reseller->get->result->id)) {
+                            $accountInfo['id'] = (int)$result->reseller->get->result->id;
+                        }
+                        if (isset($result->reseller->get->result->data->{'gen-info'}->login)) {
+                            $accountInfo['login'] = (string)$result->reseller->get->result->data->{'gen-info'}->login;
+                        }
+                    } catch (Exception $e) {
+                        if (Plesk_Api::ERROR_OBJECT_NOT_FOUND != $e->getCode()) {
+                            throw $e;
+                        }
                     }
-                } catch (Exception $e) {
-                    if (Plesk_Api::ERROR_OBJECT_NOT_FOUND != $e->getCode()) {
-                        throw $e;
-                    }
-                }
+                    break;
+            }
+
+            if (!empty($accountInfo)) {
                 break;
-
-            case Plesk_Object_Customer::TYPE_RESELLER:
-                try {
-                    $result = Plesk_Registry::getInstance()->api->reseller_get_by_login($requestParams);
-                    if (isset($result->reseller->get->result->id)) {
-                        $accountInfo['id'] = (int)$result->reseller->get->result->id;
-                    }
-                    if (isset($result->reseller->get->result->data->{'gen-info'}->login)) {
-                        $accountInfo['login'] = (string)$result->reseller->get->result->data->{'gen-info'}->login;
-                    }
-                } catch (Exception $e) {
-                    if (Plesk_Api::ERROR_OBJECT_NOT_FOUND != $e->getCode()) {
-                        throw $e;
-                    }
-                }
-                break;
+            }
         }
 
         if (empty($accountInfo)) {
@@ -409,6 +414,38 @@ class Plesk_Manager_V1630 extends Plesk_Manager_V1000
         }
         return $usage;
     }
+    
+    /**
+     * @param $params
+     * @return array (<username> => array ('diskusage' => value, 'disklimit' => value, 'bwusage' => value, 'bwlimit' => value))
+     * @throws Exception
+     */
+    protected function _getResellersUsage($params)
+    {  
+        $usage = array();
+        $data = Plesk_Registry::getInstance()->api->reseller_get_usage_by_login(array('logins' => $params['usernames']));
+        foreach($data->xpath('//reseller/get/result') as $result) {
+            try {
+                $this->_checkErrors($result);
+                $login = (string)$result->data->{'gen-info'}->login;
+                $usage[$login]['diskusage'] = (float)$result->data->stat->{'disk-space'};
+                $usage[$login]['bwusage'] = (float)$result->data->stat->traffic;
+                $usage[$login] = array_merge($usage[$login], $this->_getLimits($result->data->limits));
+            } catch (Exception $e) {
+                if (Plesk_Api::ERROR_OBJECT_NOT_FOUND != $e->getCode()) {
+                    throw $e;
+                }
+            }
+        }
+
+        //Data saved in megabytes, not in a bytes
+        foreach($usage as $login => $loginUsage) {
+            foreach($loginUsage as $param => $value) {
+                $usage[$login][$param] = $usage[$login][$param] / (1024 * 1024);
+            }
+        }
+        return $usage;
+    }
 
     protected function _addIpToIpPool($accountId, $params) {}
 
@@ -470,5 +507,15 @@ class Plesk_Manager_V1630 extends Plesk_Manager_V1000
             }
         }
         return $result;
+    }
+
+    protected function _getServicePlans()
+    {
+        $result = Plesk_Registry::getInstance()->api->service_plan_get();
+        $plans = array();
+        foreach ($result->xpath('//service-plan/get/result') as $plan) {
+            $plans[] = (string) $plan->name;
+        }
+        return $plans;
     }
 }

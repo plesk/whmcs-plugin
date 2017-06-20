@@ -2,6 +2,7 @@
 // Copyright 1999-2016. Parallels IP Holdings GmbH.
 
 use Illuminate\Database\Capsule\Manager as Capsule;
+use WHMCS\Input\Sanitize;
 
 class Plesk_Manager_V1000 extends Plesk_Manager_Base
 {
@@ -132,10 +133,10 @@ class Plesk_Manager_V1000 extends Plesk_Manager_Base
                 '<input type="submit" class="button" value="%s" />' .
                 '</form>',
                 $secure,
-                WHMCS\Input\Sanitize::encode($domain),
-                WHMCS\Input\Sanitize::encode($port),
-                WHMCS\Input\Sanitize::encode($ownerInfo['login']),
-                WHMCS\Input\Sanitize::encode(decrypt($hosting->password)),
+                Sanitize::encode($domain),
+                Sanitize::encode($port),
+                Sanitize::encode($ownerInfo['login']),
+                Sanitize::encode(decrypt($hosting->password)),
                 Plesk_Registry::getInstance()->translator->translate('BUTTON_CONTROL_PANEL')
             );
         }
@@ -485,4 +486,13 @@ class Plesk_Manager_V1000 extends Plesk_Manager_Base
             );
         }
     }
+
+    /**
+     * @return array
+     */
+    protected function _getServicePlans()
+    {
+        return array();
+    }
+
 }
