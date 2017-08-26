@@ -3,8 +3,11 @@
 
 require_once 'lib/Plesk/Loader.php';
 
-use Illuminate\Database\Capsule\Manager as Capsule;
+use Carbon\Carbon;
+use WHMCS\Database\Capsule;
 use WHMCS\Input\Sanitize;
+use WHMCS\Service\Addon;
+use WHMCS\Service\Service;
 
 function plesk_MetaData() {
     return array(
@@ -323,14 +326,11 @@ function plesk_AdminServicesTabFields($params) {
             return array('' => $translator->translate('FIELD_CHANGE_PASSWORD_MAIN_PACKAGE_DESCR'));
         }
 
-        /** @var stdClass $hosting */
-        $hosting = Capsule::table('tblhosting')
-            ->where('username', $accountInfo['login'])
-            ->where('userid', $params['clientsdetails']['userid'])
-            ->first();
-
-        $domain = is_null($hosting) ? '' : $hosting->domain;
-        return array('' => $translator->translate('FIELD_CHANGE_PASSWORD_ADDITIONAL_PACKAGE_DESCR', array('PACKAGE' => $domain)));
+        return array(
+            '' => $translator->translate('FIELD_CHANGE_PASSWORD_ADDITIONAL_PACKAGE_DESCR',
+                array('PACKAGE' => $params['domain'],)
+            )
+        );
 
     } catch (Exception $e) {
         return Plesk_Registry::getInstance()->translator->translate('ERROR_COMMON_MESSAGE', array('CODE' => $e->getCode(), 'MESSAGE' => $e->getMessage()));
@@ -366,75 +366,122 @@ function plesk_ChangePackage($params) {
  */
 function plesk_UsageUpdate($params) {
 
-    $query = Capsule::table('tblhosting')
-        ->leftjoin('tblproducts', 'tblhosting.packageid', '=', 'tblproducts.id')
-        ->where('server', $params["serverid"])
-        ->where('domainstatus', 'Active');
+    $services = Service::where('server', '=', $params['serverid'])->whereIn('domainstatus', ['Active', 'Suspended',])->get();
+    $addons = Addon::whereHas('customFieldValues.customField', function ($query) {
+        $query->where('fieldname', 'Domain');
+    })
+        ->with('customFieldValues', 'customFieldValues.customField')
+        ->where('server', '=', $params['serverid'])
+        ->whereIn('status', ['Active', 'Suspended',])
+        ->get();
 
-    $domains = array();
-    $reseller_usernames = array();
-    /** @var stdClass $hosting */
-    foreach ($query->get() as $hosting) {
-        if ($hosting->type === 'reselleraccount'){
-            $reseller_usernames[] = $hosting->username;
-        }
-        else if (!empty($hosting->domain)){
-            $domains[] = $hosting->domain;
+    $domains = [];
+    $resellerUsernames = [];
+    $resellerAccountsUsage = [];
+    $domainToModel = [];
+
+    /** @var Service $service */
+    foreach ($services as $service) {
+        if ($service->product->type == 'reselleraccount') {
+            $resellerUsernames['service'][] = $service->username;
+            $resellerToModel[$service->username] = $service;
+        } elseif ($service->domain) {
+            $domains[] = $service->domain;
+            $domainToModel[$service->domain] = $service;
         }
     }
-    
+
+    /** @var Addon $addon */
+    foreach ($addons as $addon) {
+        if ($addon->productAddon->type == 'reselleraccount') {
+            $resellerUsernames['addon'][] = $addon->username;
+            $resellerToModel[$addon->username] = $addon;
+            continue;
+        }
+        foreach ($addon->customFieldValues as $customFieldValue) {
+            if (!$customFieldValue->customField) {
+                continue;
+            }
+            if ($customFieldValue->value) {
+                $domains[] = $customFieldValue->value;
+                $domainToModel[$customFieldValue->value] = $addon;
+            }
+            break;
+        }
+    }
+
     /** Reseller Plan Updates **/
-    if (!empty($reseller_usernames)){
-      $params["usernames"] = $reseller_usernames;
-      try {
-          Plesk_Loader::init($params);
-          $resellerAccountsUsage = Plesk_Registry::getInstance()->manager->getResellersUsage($params);
-      } catch (Exception $e) {
-          return Plesk_Registry::getInstance()->translator->translate('ERROR_COMMON_MESSAGE', array('CODE' => $e->getCode(), 'MESSAGE' => $e->getMessage()));
-      }
-
-      foreach ( $resellerAccountsUsage as $username => $usage ) {
-
-          Capsule::table('tblhosting')
-              ->where('server', $params["serverid"])
-              ->where('username', $username)
-              ->update(
-                  array(
-                      "diskusage" => $usage['diskusage'],
-                      "disklimit" => $usage['disklimit'],
-                      "bwusage" => $usage['bwusage'],
-                      "bwlimit" => $usage['bwlimit'],
-                      "lastupdate" => Capsule::table('tblhosting')->raw('now()'),
-                  )
-              );
-      }
+    if (!empty($resellerUsernames) && !empty($resellerUsernames['service'])) {
+        $params['usernames'] = $resellerUsernames['service'];
+        try {
+            Plesk_Loader::init($params);
+            $resellerServiceUsage = Plesk_Registry::getInstance()->manager->getResellersUsage($params);
+        } catch (Exception $e) {
+            return Plesk_Registry::getInstance()->translator->translate('ERROR_COMMON_MESSAGE', array('CODE' => $e->getCode(), 'MESSAGE' => $e->getMessage()));
+        }
+        $resellerAccountsUsage = $resellerServiceUsage;
     }
-    
-    if (!empty($domains)){
-      /** Standard hosting plan updates **/
-      $params["domains"] = $domains;
-      try {
-          Plesk_Loader::init($params);
-          $domainsUsage = Plesk_Registry::getInstance()->manager->getWebspacesUsage($params);
-      } catch (Exception $e) {
-          return Plesk_Registry::getInstance()->translator->translate('ERROR_COMMON_MESSAGE', array('CODE' => $e->getCode(), 'MESSAGE' => $e->getMessage()));
-      }
-      
-      foreach ( $domainsUsage as $domainName => $usage ) {
 
-          Capsule::table('tblhosting')
-              ->where('server', $params["serverid"])
-              ->where('domain', $domainName)
-              ->update(
-                  array(
-                      "diskusage" => $usage['diskusage'],
-                      "disklimit" => $usage['disklimit'],
-                      "bwusage" => $usage['bwusage'],
-                      "bwlimit" => $usage['bwlimit'],
-                      "lastupdate" => Capsule::table('tblhosting')->raw('now()'),
-                  )
-              );
-      }
+    if (!empty($resellerUsernames) && !empty($resellerUsernames['addon'])) {
+        $params['usernames'] = $resellerUsernames['addon'];
+        try {
+            Plesk_Loader::init($params);
+            $resellerAddonUsage = Plesk_Registry::getInstance()->manager->getResellersUsage($params);
+        } catch (Exception $e) {
+            return Plesk_Registry::getInstance()->translator->translate('ERROR_COMMON_MESSAGE', array('CODE' => $e->getCode(), 'MESSAGE' => $e->getMessage()));
+        }
+        $resellerAccountsUsage = array_merge($resellerAccountsUsage, $resellerAddonUsage);
+    }
+
+    if (!empty ($resellerAccountsUsage)) {
+        foreach ($resellerAccountsUsage as $username => $usage) {
+
+            /** @var Addon|Service $domainModel */
+            $domainModel = $resellerToModel[$username];
+
+            if ($domainModel) {
+
+                $domainModel->serviceProperties->save(
+                    [
+                        'diskusage' => $usage['diskusage'],
+                        'disklimit' => $usage['disklimit'],
+                        'bwusage' => $usage['bwusage'],
+                        'bwlimit' => $usage['bwlimit'],
+                        'lastupdate' => Carbon::now()->toDateTimeString(),
+                    ]
+                );
+            }
+        }
+    }
+
+    if (!empty($domains)) {
+        $params["domains"] = $domains;
+
+        try {
+            Plesk_Loader::init($params);
+            $domainsUsage = Plesk_Registry::getInstance()->manager->getWebspacesUsage($params);
+        } catch (Exception $e) {
+            return Plesk_Registry::getInstance()->translator->translate('ERROR_COMMON_MESSAGE', array('CODE' => $e->getCode(), 'MESSAGE' => $e->getMessage()));
+        }
+
+        foreach ($domainsUsage as $domainName => $usage) {
+
+            /** @var Addon|Service $domainModel */
+            $domainModel = $domainToModel[$domainName];
+
+            if ($domainModel) {
+
+                $domainModel->serviceProperties->save(
+                    [
+                        'diskusage' => $usage['diskusage'],
+                        'disklimit' => $usage['disklimit'],
+                        'bwusage' => $usage['bwusage'],
+                        'bwlimit' => $usage['bwlimit'],
+                        'lastupdate' => Carbon::now()->toDateTimeString(),
+                    ]
+                );
+            }
+        }
     }
 
     return 'success';
@@ -451,5 +498,173 @@ function plesk_TestConnection($params) {
         return array(
             'error' => Plesk_Registry::getInstance()->translator->translate('ERROR_COMMON_MESSAGE', array('CODE' => $e->getCode(), 'MESSAGE' => $e->getMessage())),
         );
+    }
+}
+
+/**
+ * @param array $params
+ *
+ * @return string|array
+ */
+function plesk_GenerateCertificateSigningRequest(array $params)
+{
+    try {
+        Plesk_Loader::init($params);
+
+        $result = Plesk_Registry::getInstance()->manager->generateCSR($params);
+        return [
+            'csr' => $result->certificate->generate->result->csr->__toString(),
+            'key' => $result->certificate->generate->result->pvt->__toString(),
+            'saveData' => true,
+        ];
+    } catch (\Exception $e) {
+        return Plesk_Registry::getInstance()
+            ->translator
+            ->translate(
+                'ERROR_COMMON_MESSAGE',
+                array('CODE' => $e->getCode(), 'MESSAGE' => $e->getMessage())
+            );
+    }
+
+}
+
+/**
+ * @param array $params
+ *
+ * @return string
+ */
+function plesk_InstallSsl(array $params)
+{
+    try {
+        Plesk_Loader::init($params);
+        Plesk_Registry::getInstance()->manager->installSsl($params);
+        return 'success';
+    } catch (\Exception $e) {
+        return Plesk_Registry::getInstance()
+            ->translator
+            ->translate(
+                'ERROR_COMMON_MESSAGE',
+                array('CODE' => $e->getCode(), 'MESSAGE' => $e->getMessage())
+            );
+    }
+}
+
+/**
+ * @throws Exception
+ *
+ * @param array $params
+ *
+ * @return array
+ */
+function plesk_GetMxRecords(array $params)
+{
+    try {
+        Plesk_Loader::init($params);
+        return Plesk_Registry::getInstance()->manager->getMxRecords($params);
+    } catch (\Exception $e) {
+        throw new Exception(
+            'MX Retrieval Failed: ' . Plesk_Registry::getInstance()
+                ->translator
+                ->translate(
+                    'ERROR_COMMON_MESSAGE',
+                    array('CODE' => $e->getCode(), 'MESSAGE' => $e->getMessage())
+                )
+        );
+    }
+}
+
+/**
+ * @throws Exception
+ *
+ * @param array $params
+ */
+function plesk_DeleteMxRecords(array $params)
+{
+    try {
+        Plesk_Loader::init($params);
+        Plesk_Registry::getInstance()->manager->deleteMxRecords($params);
+    } catch (\Exception $e) {
+        throw new Exception(
+            'Unable to Delete MX Record: ' . Plesk_Registry::getInstance()
+                ->translator
+                ->translate(
+                    'ERROR_COMMON_MESSAGE',
+                    array('CODE' => $e->getCode(), 'MESSAGE' => $e->getMessage())
+                )
+        );
+    }
+}
+
+/**
+ * @throws Exception
+ *
+ * @param array $params
+ */
+function plesk_AddMxRecords(array $params)
+{
+    try {
+        Plesk_Loader::init($params);
+        Plesk_Registry::getInstance()->manager->addMxRecords($params);
+    } catch (\Exception $e) {
+        throw new Exception(
+            'MX Creation Failed: ' . Plesk_Registry::getInstance()
+                ->translator
+                ->translate(
+                    'ERROR_COMMON_MESSAGE',
+                    array('CODE' => $e->getCode(), 'MESSAGE' => $e->getMessage())
+                )
+        );
+    }
+}
+
+function plesk_CreateFileWithinDocRoot(array $params)
+{
+
+    $ftpConnection = false;
+    if (function_exists('ftp_ssl_connect')) {
+        $ftpConnection = @ftp_ssl_connect($params['serverhostname']);
+    }
+    if (!$ftpConnection) {
+        $ftpConnection = @ftp_connect($params['serverhostname']);
+    }
+    if (!$ftpConnection) {
+        throw new Exception('Plesk: Unable to create DV Auth File: FTP Connection Failed');
+    }
+    $ftpLogin = @ftp_login($ftpConnection, $params['username'], $params['password']);
+
+    if (!$ftpLogin) {
+        throw new Exception('Plesk: Unable to create DV Auth File: FTP Login Failed');
+    }
+
+    $tempFile = tempnam(sys_get_temp_dir(), "plesk");
+    if (!$tempFile) {
+        throw new Exception('Plesk: Unable to create DV Auth File: Unable to Create Temp File');
+    }
+    $file = fopen($tempFile, 'w+');
+    if (!fwrite($file, $params['fileContent'])) {
+        throw new Exception('Plesk: Unable to create DV Auth File: Unable to Write to Temp File');
+    }
+    fclose($file);
+    ftp_chdir($ftpConnection, 'httpdocs');
+
+    $dir = array_key_exists('dir', $params) ? $params['dir'] : '';
+
+    if ($dir) {
+        $dirParts = explode('/', $dir);
+        foreach ($dirParts as $dirPart) {
+            if(!@ftp_chdir($ftpConnection, $dirPart)){
+                ftp_mkdir($ftpConnection, $dirPart);
+                ftp_chdir($ftpConnection, $dirPart);
+            }
+        }
+    }
+    $upload = ftp_put($ftpConnection, $params['filename'], $tempFile, FTP_ASCII);
+    if (!$upload) {
+        ftp_pasv($ftpConnection, true);
+        $upload = ftp_put($ftpConnection, $params['filename'], $tempFile, FTP_ASCII);
+    }
+    ftp_close($ftpConnection);
+    if (!$upload) {
+        throw new Exception('Plesk: Unable to create DV Auth File: Unable to Upload File: ' . json_encode(error_get_last()));
     }
 }
