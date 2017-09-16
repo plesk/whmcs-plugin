@@ -37,11 +37,6 @@ class Plesk_Api
         return $this->request($name, $params);
     }
 
-    public function isAdmin()
-    {
-        return ('admin' === $this->_login);
-    }
-
     protected function request($command, $params)
     {
         $translator = Plesk_Registry::getInstance()->translator;
