@@ -2,6 +2,7 @@
 // Copyright 1999-2016. Parallels IP Holdings GmbH.
 
 use WHMCS\Input\Sanitize;
+use WHMCS\Http\Request;
 
 class Plesk_Manager_V1635 extends Plesk_Manager_V1632
 {
@@ -11,10 +12,11 @@ class Plesk_Manager_V1635 extends Plesk_Manager_V1632
         if (!isset($ownerInfo['login'])) {
             return null;
         }
+        $request = new Request($_SERVER);
         $result = Plesk_Registry::getInstance()->api->session_create(
             array(
                 'login' => $ownerInfo['login'],
-                'userIp' => base64_encode($_SERVER['REMOTE_ADDR']),
+                'userIp' => base64_encode($request->getClientIP()),
             )
         );
 

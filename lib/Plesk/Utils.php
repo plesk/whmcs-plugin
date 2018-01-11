@@ -1,6 +1,6 @@
 <?php
 // Copyright 1999-2016. Parallels IP Holdings GmbH.
-use Illuminate\Database\Capsule\Manager as Capsule;
+use WHMCS\Database\Capsule;
 
 class Plesk_Utils
 {
@@ -10,12 +10,21 @@ class Plesk_Utils
      */
     public static function getAccountsCount($userId)
     {
-        return Capsule::table('tblhosting')
+        $hostingAccounts = Capsule::table('tblhosting')
             ->join('tblservers', 'tblservers.id', '=', 'tblhosting.server')
             ->where('tblhosting.userid', $userId)
             ->where('tblservers.type', 'plesk')
             ->whereIn('tblhosting.domainstatus', array('Active', 'Suspended', 'Pending'))
             ->count();
+
+        $hostingAddonAccounts = Capsule::table('tblhostingaddons')
+            ->join('tblservers', 'tblhostingaddons.server', '=', 'tblservers.id')
+            ->where('tblhostingaddons.userid', $userId)
+            ->where('tblservers.type', 'plesk')
+            ->whereIn('status', ['Active', 'Suspended', 'Pending'])
+            ->count();
+
+        return $hostingAccounts + $hostingAddonAccounts;
     }
 
 }
