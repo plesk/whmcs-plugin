@@ -51,9 +51,8 @@ abstract class Plesk_Manager_Base
                 $table->string('usertype');
                 $table->string('panelexternalid');
 
-                $table->primary('userid');
                 $table->index('usertype');
-                $table->unique('panelexternalid');
+                $table->primary('panelexternalid');
             }
         );
     }
