@@ -135,7 +135,7 @@ function plesk_CreateAccount($params) {
   
     if ( strlen($params['password']) <= NEW_PASSWORD_LENGTH ){
       
-      $newPassword = pleskRandomPassword(NEW_PASSWORD_LENGTH);
+      $newPassword = plesk_RandomPassword(NEW_PASSWORD_LENGTH);
       
       //Change password saved in WHMCS for product
       $values["serviceid"] = $params['serviceid'];
@@ -472,10 +472,9 @@ function plesk_TestConnection($params) {
 
 /**
  * Pseudorandom password generator
- * Limitations: only works with PHP7+ due to random_int() being used.
  */
 
-function pleskRandomPassword($size = 8) {
+function plesk_RandomPassword($size = 8) {
 
     $alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^*?_~';
 		$symbols = '!@#$%^*?_~';
@@ -483,13 +482,20 @@ function pleskRandomPassword($size = 8) {
     $pass = array(); //remember to declare $pass as an array
     $alphaLength = strlen($alphabet) - 1; //put the length -1 in cache
     for ($i = 0; $i < $size; $i++) {
-        $n = random_int(0, $alphaLength);
+        $n = plesk_random_int(0, $alphaLength);
         $pass[] = $alphabet[$n];
     }
 		if ( empty( preg_grep('/[!@#\$%\^&\*\?_~]/', $pass) ) ){ // If no symbols. Add 2
-				$pass[random_int(0, $alphaLength)] = $symbols[random_int(0, strlen($symbols) - 1)];
-				$pass[random_int(0, $alphaLength)] = $symbols[random_int(0, strlen($symbols) - 1)];
+				$pass[plesk_random_int(0, $alphaLength)] = $symbols[plesk_random_int(0, strlen($symbols) - 1)];
+				$pass[plesk_random_int(0, $alphaLength)] = $symbols[plesk_random_int(0, strlen($symbols) - 1)];
 		}
-    return implode($pass); //turn the array into a string
+    return implode($pass); 
 
+}
+
+/* 
+ * random_int with fallback to PHP 5's not crypto secure mt_rand.
+ */
+function plesk_random_int($min, $max){
+  return function_exists('random_int') ? random_int($min, $max) : mt_rand($min, $max);
 }
