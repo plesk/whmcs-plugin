@@ -2,7 +2,7 @@
 <reseller>
     <switch-subscription>
         <filter>
-            <id><?php echo $externalId; ?></id>
+            <id><?php echo $id; ?></id>
         </filter>
         <plan-guid><?php echo $planGuid; ?></plan-guid>
     </switch-subscription>
