@@ -48,12 +48,11 @@ abstract class Plesk_Manager_Base
 
                 /** @var \Illuminate\Database\Schema\Blueprint $table */
                 $table->integer('userid');
-                $table->string('usertype');
-                $table->string('panelexternalid');
+                $table->string('usertype', 20);
+                $table->string('panelexternalid', 50);
 
-                $table->primary('userid');
-                $table->index('usertype');
-                $table->unique('panelexternalid');
+                $table->primary(array('panelexternalid', 'usertype'));
+                $table->index(array('userid', 'usertype'));
             }
         );
     }
