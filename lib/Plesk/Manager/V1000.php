@@ -383,7 +383,6 @@ class Plesk_Manager_V1000 extends Plesk_Manager_Base
             }
         }
 
-        if (Plesk_Registry::getInstance()->api->isAdmin()) {
             switch($params["configoption3"]) {
                 case 'IPv4 shared; IPv6 none':
                     $ip['ipv4Address'] = ($params['addAddonDedicatedIPv4'])
@@ -425,10 +424,10 @@ class Plesk_Manager_V1000 extends Plesk_Manager_Base
                     $ip['ipv4Address'] = Plesk_Registry::getInstance()->manager->getFreeDedicatedIpv4();
                     $ip['ipv6Address'] = Plesk_Registry::getInstance()->manager->getFreeDedicatedIpv6();
                     break;
+				default:
+					$ip['ipv4Address'] = $params['serverip'];
+					break;
             }
-        } else {
-            $ip['ipv4Address'] = $params['serverip'];
-        }
 
         return $ip;
     }
