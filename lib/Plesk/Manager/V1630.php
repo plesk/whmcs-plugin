@@ -1,6 +1,7 @@
 <?php
 // Copyright 1999-2016. Parallels IP Holdings GmbH.
 use Illuminate\Database\Capsule\Manager as Capsule;
+use WHMCS\Service\Addon;
 
 class Plesk_Manager_V1630 extends Plesk_Manager_V1000
 {
@@ -89,14 +90,44 @@ class Plesk_Manager_V1630 extends Plesk_Manager_V1000
             return $accountInfo;
         }
 
-        $query = Capsule::table('tblhosting')
+        $accountsArray = [];
+
+        $productsOnServer = Capsule::table('tblhosting')
             ->where('server', $params['serverid'])
-            ->where('userid', $params['clientsdetails']['userid']);
+            ->where('userid', $params['clientsdetails']['userid'])
+            ->get();
+
+        if ($productsOnServer) {
+            foreach ($productsOnServer as $product) {
+                $accountsArray[] = $product->username;
+            }
+        }
+
+
+        $addonsOnServer = $addons = Addon::with(
+            [
+                'customFieldValues',
+                'customFieldValues.customField' => function ($query) {
+                    $query->where('fieldname', '=', 'username');
+                },
+            ])
+            ->where('server', $params['serverid'])
+            ->where('userid', $params['clientsdetails']['userid'])
+            ->get();
+
+        if ($addonsOnServer) {
+            foreach ($addonsOnServer as $addon) {
+                $pleskUsername = $addon->customFieldValue['username'];
+                if ($pleskUsername) {
+                    $accountsArray[] = $pleskUsername;
+                }
+            }
+        }
+
 
         /** @var stdClass $hosting */
-        foreach ($query->get() as $hosting) {
-            $login = is_null($hosting) ? '' : $hosting->username;
-            $requestParams = array('login' => $login);
+        foreach ($accountsArray as $username) {
+            $requestParams = array('login' => $username);
             switch ($params['type']) {
                 case Plesk_Object_Customer::TYPE_CLIENT:
 
@@ -414,14 +445,14 @@ class Plesk_Manager_V1630 extends Plesk_Manager_V1000
         }
         return $usage;
     }
-    
+
     /**
      * @param $params
      * @return array (<username> => array ('diskusage' => value, 'disklimit' => value, 'bwusage' => value, 'bwlimit' => value))
      * @throws Exception
      */
     protected function _getResellersUsage($params)
-    {  
+    {
         $usage = array();
         $data = Plesk_Registry::getInstance()->api->reseller_get_usage_by_login(array('logins' => $params['usernames']));
         foreach($data->xpath('//reseller/get/result') as $result) {
@@ -517,5 +548,97 @@ class Plesk_Manager_V1630 extends Plesk_Manager_V1000
             $plans[] = (string) $plan->name;
         }
         return $plans;
+    }
+
+    protected function _generateCSR($params)
+    {
+        $accountInfo = $this->_getAccountInfo($params);
+        if (!isset($accountInfo['id'])) {
+            return '';
+        }
+
+        if (isset($accountInfo['login']) && $accountInfo['login'] != $params["username"]) {
+            return '';
+        }
+        return Plesk_Registry::getInstance()->api->certificate_generate($params['certificateInfo']);
+    }
+
+    protected function _installSsl($params)
+    {
+        $accountInfo = $this->_getAccountInfo($params);
+        if (!isset($accountInfo['id'])) {
+            return '';
+        }
+
+        if (isset($accountInfo['login']) && $accountInfo['login'] != $params["username"]) {
+            return '';
+        }
+        return Plesk_Registry::getInstance()->api->certificate_install($params);
+    }
+
+    protected function _getMxRecords($params)
+    {
+        $accountInfo = $this->_getAccountInfo($params);
+        if (!isset($accountInfo['id'])) {
+            return '';
+        }
+        if (isset($accountInfo['login']) && $accountInfo['login'] != $params["username"]) {
+            return '';
+        }
+        $webSpace = Plesk_Registry::getInstance()
+            ->api
+            ->webspace_get_by_name(['domain' => $params['domain'],]);
+
+        $siteId = (string) $webSpace->webspace->get->result->id;
+
+        $records = Plesk_Registry::getInstance()->api->dns_record_retrieve(['siteId' => (int) $siteId,]);
+        $mxRecords = [];
+        foreach ($records->dns->get_rec->result as $dnsRecord) {
+            if (strtolower($dnsRecord->data->type->__toString()) !== 'mx') {
+                continue;
+            }
+            $mxData = (array) $dnsRecord->data;
+            $mxRecords[] = [
+                'id' => (int) $dnsRecord->id,
+                'mx' => $mxData['value'],
+                'priority' => $mxData['opt'],
+            ];
+        }
+        return ['mxRecords' => $mxRecords,];
+    }
+
+    protected function _deleteMxRecords($params)
+    {
+        $accountInfo = $this->_getAccountInfo($params);
+        if (!isset($accountInfo['id'])) {
+            return;
+        }
+        if (isset($accountInfo['login']) && $accountInfo['login'] != $params["username"]) {
+            return;
+        }
+        $dnsToRemove = [];
+        foreach ($params['mxRecords'] as $record) {
+            $dnsToRemove[] = $record['id'];
+        }
+        Plesk_Registry::getInstance()->api->dns_record_delete(['dnsRecords' => $dnsToRemove,]);
+    }
+
+    protected function _addMxRecords($params)
+    {
+        $accountInfo = $this->_getAccountInfo($params);
+        if (!isset($accountInfo['id'])) {
+            return;
+        }
+        if (isset($accountInfo['login']) && $accountInfo['login'] != $params["username"]) {
+            return;
+        }
+        $webSpace = Plesk_Registry::getInstance()
+            ->api
+            ->webspace_get_by_name(['domain' => $params['domain'],]);
+
+        $siteId = (string) $webSpace->webspace->get->result->id;
+
+        $params['pleskSiteId'] = $siteId;
+        Plesk_Registry::getInstance()->api->mx_record_create($params);
     }
 }
