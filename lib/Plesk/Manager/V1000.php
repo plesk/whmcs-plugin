@@ -436,6 +436,9 @@ class Plesk_Manager_V1000 extends Plesk_Manager_Base
     {
         $webspace = Plesk_Registry::getInstance()->api->webspace_get_by_name(array('domain' => $params['domain']));
         $ipDedicatedList = $this->_getIpList(Plesk_Object_Ip::DEDICATED);
+        if (empty($ipDedicatedList)) {
+            return;
+        }
         $oldIp[Plesk_Object_Ip::IPV4] = (string)$webspace->data->hosting->vrt_hst->ip_address;
 
         $ipv4Address = isset($oldIp[Plesk_Object_Ip::IPV4]) ? $oldIp[Plesk_Object_Ip::IPV4] : '';
