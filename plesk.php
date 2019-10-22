@@ -77,6 +77,14 @@ function plesk_ConfigOptions(array $params)
             "Type" => "yesno",
             "Description" => $translator->translate("CONFIG_POWER_USER_MODE_DESCRIPTION"),
         ),
+        "hostingType" => array(
+            "FriendlyName" => $translator->translate("CONFIG_HOSTING_TYPE"),
+            "Type" => "dropdown",
+            "Options" => "vrt_hst,none,std_fwd,frm_fwd",
+            "Default" => "vrt_hst",
+            "Description" => $translator->translate("CONFIG_HOSTING_TYPE_DESCRIPTION"),
+            'SimpleMode' => true,
+        ),
 
     );
 

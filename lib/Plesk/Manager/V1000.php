@@ -298,7 +298,7 @@ class Plesk_Manager_V1000 extends Plesk_Manager_Base
             'username' => $params['username'],
             'password' => $params['password'],
             'status' => Plesk_Object_Webspace::STATUS_ACTIVE,
-            'htype' => Plesk_Object_Webspace::TYPE_VRT_HST,
+            'htype' => $params['configoption5'],
             'planName' => $params['configoption1'],
             'ipv4Address' => $params['ipv4Address'],
             'ipv6Address' => $params['ipv6Address'],

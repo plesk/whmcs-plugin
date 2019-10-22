@@ -8,6 +8,12 @@
             <htype><?php echo $htype; ?></htype>
             <status><?php echo $status; ?></status>
         </gen_setup>
+        <?php if ($htype === 'none'): ?>
+        <hosting>
+            <none></none>
+        </hosting>
+        <?php endif; ?>
+        <?php if ($htype === 'vrt_hst'): ?>
         <hosting>
             <vrt_hst>
                 <property>
@@ -24,6 +30,7 @@
         <prefs>
             <www>true</www>
         </prefs>
+        <?php endif; ?>
         <plan-name><?php echo $planName; ?></plan-name>
     </add>
 </webspace>

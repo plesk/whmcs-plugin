@@ -8,6 +8,12 @@
             <htype><?php echo $htype; ?></htype>
             <status><?php echo $status; ?></status>
         </gen_setup>
+        <?php if ($htype === 'none'): ?>
+        <hosting>
+            <none></none>
+        </hosting>
+        <?php endif; ?>
+        <?php if ($htype === 'vrt_hst'): ?>
         <hosting>
             <vrt_hst>
                 <ftp_login><?php echo $username; ?></ftp_login>
@@ -18,6 +24,7 @@
         <prefs>
             <www>true</www>
         </prefs>
+        <?php endif; ?>
         <template-name><?php echo $planName; ?></template-name>
     </add>
 </domain>
