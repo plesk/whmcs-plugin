@@ -213,20 +213,7 @@ class Plesk_Manager_V1630 extends Plesk_Manager_V1000
 
     protected function _addWebspace($params)
     {
-        $this->_checkRestrictions($params);
-
-        $requestParams = [
-            'domain' => $params['domain'],
-            'ownerId' => $params['ownerId'],
-            'username' => $params['username'],
-            'password' => $params['password'],
-            'status' => Plesk_Object_Webspace::STATUS_ACTIVE,
-            'htype' => Plesk_Object_Webspace::TYPE_VRT_HST,
-            'planName' => $params['configoption1'],
-            'ipv4Address' => $params['ipv4Address'],
-            'ipv6Address' => $params['ipv6Address'],
-        ];
-        Plesk_Registry::getInstance()->api->webspace_add($requestParams);
+        parent::_addWebspace($params);
     }
 
     protected function _setResellerStatus($params)

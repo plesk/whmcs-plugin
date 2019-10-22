@@ -1,0 +1,12 @@
+# Changelog
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [221019] - 2019-10-22
+Added:
+- webspace_del for api 1.6.3.2 to fix a bug when deleting a subscription with ipv6 support.
+EXTWHMCS-33:
+- in module option, now we have the hosting type, this option fix the bug so you can select in whmcs the hosting type.
+- fixed various webspace_add.tpl to support hosting type 'none' and 'vrt_hst'.
