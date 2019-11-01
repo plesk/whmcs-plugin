@@ -17,12 +17,6 @@ class Plesk_Manager_V1632 extends Plesk_Manager_V1630
     {
         parent::_deleteWebspace($params);
     }
-    /*
-    protected function _getAccountInfo($params, $panelExternalId = null)
-    {
-        parent::_getAccountInfo($params, $panelExternalId = null);
-    }
-    */
 
     protected function _getSharedIpv4($params)
     {
