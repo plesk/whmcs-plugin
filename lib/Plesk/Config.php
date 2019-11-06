@@ -32,7 +32,8 @@ class Plesk_Config
     public static function getDefaults()
     {
         return array(
-            'account_limit' => 0
+            'account_limit' => 0,
+            'skip_addon_prefix' => false,
         );
     }
 
