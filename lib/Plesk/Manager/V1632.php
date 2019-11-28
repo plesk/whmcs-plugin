@@ -106,6 +106,9 @@ class Plesk_Manager_V1632 extends Plesk_Manager_V1630
     {
         $webspace = Plesk_Registry::getInstance()->api->webspace_get_by_name(array('domain' => $params['domain']));
         $ipDedicatedList = $this->_getIpList(Plesk_Object_Ip::DEDICATED);
+        if (empty($ipDedicatedList)) {
+            return;
+        }
         foreach($webspace->webspace->get->result->data->hosting->vrt_hst->ip_address as $ip) {
             $ip = (string)$ip;
             $oldIp[$this->_isIpv6($ip) ? Plesk_Object_Ip::IPV6 : Plesk_Object_Ip::IPV4] = $ip;
