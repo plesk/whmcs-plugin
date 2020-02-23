@@ -348,16 +348,22 @@ class Plesk_Manager_V1630 extends Plesk_Manager_V1000
 
         $addonsToRemove = array();
         $addonsFromRequest = array();
+        $skipAddonPrefix = (bool)Plesk_Config::get()->skip_addon_prefix;
         foreach($params['configoptions'] as $addonTitle => $value) {
             // if value = 1 then add-on has question (yes/no) type and should be process a little another way. if 0 - we should not include this add-on to processing.
             if ("0" == $value) {
                 continue;
             }
-            if (0 !== strpos($addonTitle, Plesk_Object_Addon::ADDON_PREFIX)) {
-                continue;
-            }
 
-            $pleskAddonTitle = substr_replace($addonTitle, '', 0, strlen(Plesk_Object_Addon::ADDON_PREFIX));
+            $addonTitleHasPrefix = 0 === strpos($addonTitle, Plesk_Object_Addon::ADDON_PREFIX);
+            if ($skipAddonPrefix) {
+                $pleskAddonTitle = $addonTitleHasPrefix ? $this->sanitizeAddonName($addonTitle) : $addonTitle;
+            } else {
+                if (!$addonTitleHasPrefix) {
+                    continue;
+                }
+                $pleskAddonTitle = $this->sanitizeAddonName($addonTitle);
+            }
 
             $addonsFromRequest[] = ("1" == $value) ? $pleskAddonTitle : $value;
         }
@@ -388,6 +394,15 @@ class Plesk_Manager_V1630 extends Plesk_Manager_V1000
             }
 
         }
+    }
+
+    /**
+     * @param string $addonTitle
+     * @return string
+     */
+    protected function sanitizeAddonName($addonTitle)
+    {
+        return substr_replace($addonTitle, '', 0, strlen(Plesk_Object_Addon::ADDON_PREFIX));
     }
 
     /**
@@ -482,6 +497,9 @@ class Plesk_Manager_V1630 extends Plesk_Manager_V1000
     {
         $webspace = Plesk_Registry::getInstance()->api->webspace_get_by_name(array('domain' => $params['domain']));
         $ipDedicatedList = $this->_getIpList(Plesk_Object_Ip::DEDICATED);
+        if (empty($ipDedicatedList)) {
+            return;
+        }
         $oldIp[Plesk_Object_Ip::IPV4] = (string)$webspace->webspace->get->result->data->hosting->vrt_hst->ip_address;
 
         $ipv4Address = isset($oldIp[Plesk_Object_Ip::IPV4]) ? $oldIp[Plesk_Object_Ip::IPV4] : '';
