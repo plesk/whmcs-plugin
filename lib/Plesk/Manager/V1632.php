@@ -13,6 +13,11 @@ class Plesk_Manager_V1632 extends Plesk_Manager_V1630
         parent::_addWebspace($params);
     }
 
+    protected function _deleteWebspace($params)
+    {
+        parent::_deleteWebspace($params);
+    }
+
     protected function _getSharedIpv4($params)
     {
         return $this->_getIp($params);
