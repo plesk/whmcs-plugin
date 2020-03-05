@@ -387,14 +387,6 @@ class Plesk_Manager_V1630 extends Plesk_Manager_V1000
         }
 
         $addonsToAdd = array_diff($addonsFromRequest, array_values($addons));
-        foreach($addonsToRemove as $guid => $addon) {
-            Plesk_Registry::getInstance()->api->webspace_remove_subscription(
-                array(
-                    'planGuid' => $guid,
-                    'id' => $webspaceId,
-                )
-            );
-        }
         foreach($addonsToAdd as $addonName) {
             $addon = Plesk_Registry::getInstance()->api->service_plan_addon_get_by_name(array('name' => $addonName));
             foreach($addon->xpath('//service-plan-addon/get/result/guid') as $guid) {
@@ -406,6 +398,14 @@ class Plesk_Manager_V1630 extends Plesk_Manager_V1000
                 );
             }
 
+        }
+        foreach($addonsToRemove as $guid => $addon) {
+            Plesk_Registry::getInstance()->api->webspace_remove_subscription(
+                array(
+                    'planGuid' => $guid,
+                    'id' => $webspaceId,
+                )
+            );
         }
     }
 
